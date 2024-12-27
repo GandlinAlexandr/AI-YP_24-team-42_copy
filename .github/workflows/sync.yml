@@ -1,0 +1,24 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Ежедневно в полночь
+  workflow_dispatch: # Возможность запуска вручную
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Add upstream repository
+      run: |
+        git remote add upstream https://github.com/HerrVonBeloff/AI-YP_24-team-42
+        git fetch upstream
+        git merge upstream/main
+      
+    - name: Push changes to origin
+      run: |
+        git push origin main
