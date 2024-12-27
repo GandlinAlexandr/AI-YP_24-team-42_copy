@@ -12,13 +12,20 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-      
+
     - name: Add upstream repository
       run: |
         git remote add upstream https://github.com/HerrVonBeloff/AI-YP_24-team-42
         git fetch upstream
-        git merge upstream/main
-      
-    - name: Push changes to origin
+
+    - name: Merge and push all branches from upstream
       run: |
-        git push origin main
+        # Перебираем все ветки из upstream
+        for branch in $(git branch -r | grep upstream/ | sed 's/upstream\///'); do
+          # Переключаемся на локальную ветку или создаём её, если её нет
+          git checkout $branch || git checkout -b $branch upstream/$branch
+          # Мержим изменения из upstream
+          git merge upstream/$branch
+          # Пушим изменения в origin
+          git push origin $branch
+        done
