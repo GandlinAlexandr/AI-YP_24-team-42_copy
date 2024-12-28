@@ -1,0 +1,10 @@
+# Основные библиотеки
+fastapi
+uvicorn
+streamlit
+torch
+torchvision
+numpy
+Pillow
+spacy
+pydantic
