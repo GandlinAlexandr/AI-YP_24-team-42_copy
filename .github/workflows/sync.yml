@@ -16,16 +16,14 @@ jobs:
     - name: Add upstream repository
       run: |
         git remote add upstream https://github.com/HerrVonBeloff/AI-YP_24-team-42
-        git fetch upstream
-
+        git fetch upstream --prune # Удаляем устаревшие ветки
+        
     - name: Merge and push all branches from upstream
       run: |
-        # Перебираем все ветки из upstream
+        set -e # Останавливаем выполнение при ошибке
         for branch in $(git branch -r | grep upstream/ | sed 's/upstream\///'); do
-          # Переключаемся на локальную ветку или создаём её, если её нет
+          echo "Processing branch: $branch"
           git checkout $branch || git checkout -b $branch upstream/$branch
-          # Мержим изменения из upstream
-          git merge upstream/$branch
-          # Пушим изменения в origin
-          git push origin $branch
+          git merge upstream/$branch --strategy-option theirs || echo "Merge conflict in $branch, skipping."
+          git push origin $branch || echo "Failed to push $branch"
         done
