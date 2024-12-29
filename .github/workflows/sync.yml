@@ -24,6 +24,6 @@ jobs:
         for branch in $(git branch -r | grep upstream/ | sed 's/upstream\///'); do
           echo "Processing branch: $branch"
           git checkout $branch || git checkout -b $branch upstream/$branch
-          git merge upstream/$branch --strategy-option theirs || echo "Merge conflict in $branch, skipping."
+          git merge upstream/$branch --allow-unrelated-histories --strategy-option theirs || echo "Merge conflict in $branch, skipping."
           git push origin $branch || echo "Failed to push $branch"
         done
