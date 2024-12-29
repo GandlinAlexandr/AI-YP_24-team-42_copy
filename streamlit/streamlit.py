@@ -14,26 +14,23 @@ import requests
 
 api_url = "http://127.0.0.1:8000/generate/"
 
-# ОЧЕНЬ СКРОМНОЕ ЛОГГИРОВАНИЕ
-# Создание папки
-os.makedirs("logs", exist_ok=True)
+# Настройка логирования
+log_directory = "logs"  
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
 
-# Настройки
-log_formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_file_path = os.path.join(log_directory, "streamlit.log")
+
+# Создание обработчика для ротации логов
+handler = RotatingFileHandler(log_file_path, maxBytes=10 * 1024 * 1024, backupCount=5)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[handler]
 )
 
-log_file = "logs/app.log"
+logger = logging.getLogger()
 
-# Ротация - 5 Мб - максимум 5 штук
-log_handler = RotatingFileHandler(
-    log_file, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8"
-)
-log_handler.setFormatter(log_formatter)
-
-logger = logging.getLogger("MyAppLogger")
-logger.setLevel(logging.DEBUG)
-logger.addHandler(log_handler)
 
 if "eda_clicked" not in st.session_state:
     st.session_state.eda_clicked = False
@@ -79,6 +76,7 @@ description = st.text_input("Введите описание логотипа:")
 if st.button("Сгенерировать логотип"):
     if description:
         generated_images = []
+        logger.info("Начинается генерация логотипа с описанием: %s", description)
         for i in range(4):
             payload = {"description": description}
             response = requests.post(api_url, json=payload)
@@ -88,13 +86,16 @@ if st.button("Сгенерировать логотип"):
                 pixel_data = np.array(response_list["image"], dtype=np.uint8)
                 generate_image = Image.fromarray(pixel_data)
                 generated_images.append(generate_image)
+                logger.info("Логотип %d сгенерирован успешно", i + 1)
             else:
                 logger.error(f"Ошибка при подключении к API: {response.status_code}")
                 st.write("Ошибка при подключении к API")
         st.session_state.generate_image = generated_images
         st.session_state.description = description
+        logger.info("Генерация логотипов завершена.")
     else:
         st.warning("Пожалуйста, введите описание.")
+        logger.warning("Пользователь не ввел описание.")
 
 if "generate_image" in st.session_state:
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
@@ -104,6 +105,8 @@ if "generate_image" in st.session_state:
             caption="Сгенерированный логотип #1",
             width=124,
         )
+        logger.info("Отображается %s", f"Сгенерированный логотип #{i + 1}")
+
     with col2:
         st.image(
             st.session_state.generate_image[1],
@@ -126,6 +129,7 @@ if "generate_image" in st.session_state:
 with st.expander("Краткая информация о модели: свернуть/развернуть", expanded=True):
     if st.button("Краткая информация о модели"):
         st.session_state.info_clicked = True
+        logger.info("Пользователь запросил краткую информацию о модели.")
 
     if st.session_state.info_clicked:
         st.header("Краткая справка")
@@ -139,12 +143,15 @@ with st.expander("Краткая информация о модели: свер�
             f" Ссылка на [репозиторий GitHub](https://github.com/HerrVonBeloff/AI-YP_24-team-42).",
             unsafe_allow_html=True,
         )
+        logger.info("Показана краткая справка о модели.")
         st.header("Процесс обучения")
         theme_model = st.selectbox(
             "Выберите тему для графиков", sorted(themes), key="theme_selector1"
         )
         df_loss = pd.read_csv("loss_long.csv")
         df_metric = pd.read_csv("metric.csv")
+        logger.info("Данные для графиков успешно загружены.")
+
         fig = px.line(
             df_loss,
             x="Epoch",
@@ -172,6 +179,7 @@ with st.expander("Краткая информация о модели: свер�
         fig.update_traces(name="Дискриминатор", selector=dict(name="D_loss"))
         fig.update_traces(name="Генератор", selector=dict(name="G_loss"))
         st.plotly_chart(fig)
+        logger.info("График потерь успешно создан и отображен.")
 
         st.header("Метрика FID")
         fig = px.line(
@@ -233,8 +241,9 @@ if uploaded_file is not None:
             lambda x: Image.open(BytesIO(x.get("bytes")))
         )
     except Exception as e:
-        st.error(f"Ошибка извлечения изображения: {e}")
         logger.error(f"Ошибка извлечения изображения: {e}")
+        st.error(f"Ошибка извлечения изображения: {e}")
+        
 
     with st.expander(
         "Получить случайный элемент датасета: свернуть/развернуть", expanded=True
@@ -244,6 +253,7 @@ if uploaded_file is not None:
             st.session_state.index = ind
             st.session_state.dataset_image = dataset["image"][ind]
             st.session_state.dataset_text = dataset["text"][ind]
+            logger.info("Получен случайный элемент датасета: индекс %d", ind)
 
         if "dataset_image" in st.session_state:
             col1, col2, col3 = st.columns([1, 2, 1])
@@ -263,6 +273,7 @@ if uploaded_file is not None:
             try:
                 dataset_for_eda = dataset_to_eda(dataset)
                 st.session_state.dataset_for_EDA = dataset_for_eda
+                logger.info("EDA успешно выполнен, данные подготовлены для анализа.")
             except Exception as e:
                 st.error(f"Ошибка данных датасета: {e}")
                 logger.error(f"Ошибка форматирования датасета: {e}")
@@ -309,6 +320,8 @@ if uploaded_file is not None:
                         size=(bin_edges[1] - bin_edges[0]),
                     ),
                 )
+                logger.info("Гистограмма распределения длин описаний успешно создана и отображена.")
+
                 fig.update_layout(
                     bargap=0.1,
                     xaxis=dict(
@@ -326,6 +339,8 @@ if uploaded_file is not None:
                     yaxis_title="Частота",
                 )
                 st.plotly_chart(fig)
+                logger.info("Гистограмма распределения длин описаний успешно создана и отображена.")
+                st.error(f"Ошибка при создании гистограммы: {e}")
 
                 st.subheader("Boxplot для длин описаний")
                 fig = px.box(data, x="len", template=theme)
