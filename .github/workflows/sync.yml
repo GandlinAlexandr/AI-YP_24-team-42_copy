@@ -17,25 +17,13 @@ jobs:
       run: |
         git remote add upstream https://github.com/HerrVonBeloff/AI-YP_24-team-42
         git fetch upstream --prune # Удаляем устаревшие ветки
-
-    - name: Force replace main branch
+        
+    - name: Merge and push all branches from upstream
       run: |
-        # Переключаемся на main или создаём её
-        git checkout main || git checkout -b main
-        # Полностью заменяем содержимое main содержимым из upstream/main
-        git reset --hard upstream/main
-        # Принудительно пушим изменения в origin
-        git push --force origin main
-
-    - name: Sync other branches
-      run: |
-        # Перебираем все ветки, кроме main
-        for branch in $(git branch -r | grep upstream/ | sed 's/upstream\///' | grep -v '^main$'); do
+        set -e # Останавливаем выполнение при ошибке
+        for branch in $(git branch -r | grep upstream/ | sed 's/upstream\///'); do
           echo "Processing branch: $branch"
-          # Переключаемся на локальную ветку или создаём её, если её нет
           git checkout $branch || git checkout -b $branch upstream/$branch
-          # Мержим изменения из upstream
-          git merge upstream/$branch || echo "Merge conflict in $branch, skipping."
-          # Пушим изменения в origin
+          git merge upstream/$branch --allow-unrelated-histories --strategy-option theirs || echo "Merge conflict in $branch, skipping."
           git push origin $branch || echo "Failed to push $branch"
         done
